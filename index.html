@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pesos – Lojas CAWA</title>
+<style>
+:root{
+  --bg:#f5f6f8;--card:#ffffff;--fg:#1c2230;--muted:#5f6878;--line:#e0e3e9;
+  --accent:#2457c5;--accent-fg:#ffffff;--accent-soft:#e8eefb;
+  --ok:#17794a;--ok-soft:#e4f4ec;--warn:#9a5a00;--warn-soft:#fdf1dd;--err:#b42318;--err-soft:#fdeceb;
+  --chip:#eef0f4;--code:#f3f4f7;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#13161b;--card:#1b1f26;--fg:#e5e8ed;--muted:#9aa3b2;--line:#2b313b;
+    --accent:#6f9bff;--accent-fg:#0f1420;--accent-soft:#1f2a44;
+    --ok:#4cc38a;--ok-soft:#163327;--warn:#f0a845;--warn-soft:#3a2b12;--err:#ff7a6e;--err-soft:#3d1c1a;
+    --chip:#262b34;--code:#161a20;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:900px;margin:0 auto;padding:28px 16px 48px}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:16px}
+.card h2{font-size:16px;margin:0 0 12px}
+.drop{display:block;border:2px dashed var(--line);border-radius:8px;padding:26px 16px;text-align:center;cursor:pointer;color:var(--muted);transition:border-color .15s,background .15s}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft);color:var(--fg)}
+.drop strong{color:var(--fg)}
+.drop input{display:none}
+.files{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{background:var(--chip);border-radius:6px;padding:4px 10px;font-size:13px;overflow-wrap:anywhere}
+.chip b{margin-right:6px}
+.chip.bad{background:var(--err-soft);color:var(--err)}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.ins{border-top:1px solid var(--line);padding:14px 0}
+.ins:first-of-type{border-top:0;padding-top:0}
+.ins h3{font-size:15px;margin:0;flex:1 1 auto;overflow-wrap:anywhere}
+.ins h3 small{color:var(--muted);font-weight:400;margin-left:6px}
+.badge{font-size:12px;font-weight:600;border-radius:999px;padding:2px 10px;white-space:nowrap}
+.b-ok{background:var(--ok-soft);color:var(--ok)}
+.b-new{background:var(--accent-soft);color:var(--accent)}
+.b-warn{background:var(--warn-soft);color:var(--warn)}
+.b-err{background:var(--err-soft);color:var(--err)}
+.stats{color:var(--muted);font-size:14px;margin:6px 0 0}
+.stats b{color:var(--fg)}
+.msg{font-size:14px;margin:6px 0 0}
+.msg.err{color:var(--err)}.msg.warn{color:var(--warn)}.msg.ok{color:var(--ok)}
+details{margin-top:8px}
+summary{cursor:pointer;font-size:14px;color:var(--accent)}
+.list{margin:8px 0 0;max-height:260px;overflow:auto;background:var(--code);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font:12.5px/1.6 ui-monospace,Consolas,monospace}
+.list div{white-space:nowrap}
+.list span{color:var(--muted);margin-left:10px}
+button{font:inherit;font-size:14px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--fg);padding:6px 14px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:600}
+button:disabled{opacity:.5;cursor:default}
+.actions{margin-top:14px;justify-content:space-between}
+.note{color:var(--muted);font-size:13px}
+.note ol{margin:6px 0 0;padding-left:20px}
+code{background:var(--code);border-radius:4px;padding:1px 5px;font-size:12.5px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>Pesos – acrescentar lojas nos XML do CAWA</h1>
+  <p class="sub">Lê a ficha Excel (sheets CNT / CBD / MDL) e acrescenta nos XML <code>MFT_NCR_FTPPUBLICO_SCOT_EANS_*</code> as lojas que ainda não existem.</p>
+
+  <section class="card">
+    <h2>1. Carregar ficheiros</h2>
+    <label class="drop" id="drop">
+      <input type="file" id="input" multiple accept=".xlsx,.xml,.bak">
+      <strong>Arraste aqui</strong> o Excel e os XML (CNT, CBD, MDL)<br>ou clique para escolher
+    </label>
+    <div class="files" id="files"></div>
+    <div class="row actions">
+      <span class="note">Os ficheiros são processados só neste browser – nada é enviado para nenhum servidor.</span>
+      <button id="limpar" class="hidden">Limpar</button>
+    </div>
+  </section>
+
+  <section class="card hidden" id="resultado">
+    <h2>2. Resultado</h2>
+    <div id="insignias"></div>
+    <div class="row actions">
+      <span class="note" id="resumo"></span>
+      <button class="primary" id="todos">Descarregar XML alterados</button>
+    </div>
+  </section>
+
+  <section class="card note">
+    <b>Como usar</b>
+    <ol>
+      <li>Acrescente as lojas novas no Excel, na sheet da insígnia (colunas <code>APPL | JOB NAME | PARAMETROS</code>).</li>
+      <li>Carregue aqui o Excel e os XML atuais.</li>
+      <li>Reveja as lojas a acrescentar e descarregue os XML alterados (mantêm o mesmo nome).</li>
+      <li>Guarde o original, substitua-o pelo novo e importe no CAWA.</li>
+    </ol>
+  </section>
+</main>
+
+<script>
+"use strict";
+const INSIGNIAS = ["CNT", "CBD", "MDL"];
+const COL_JOB = 1, COL_PARAM = 2;   // colunas: APPL | JOB NAME | PARAMETROS
+
+const estado = { excel: null, xml: {}, ignorados: [] };
+let resultados = [];
+
+/* ---------- leitura do .xlsx (zip + XML), sem bibliotecas externas ---------- */
+
+async function unzip(buf) {
+  const dv = new DataView(buf);
+  let eocd = -1;
+  for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 65557); i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error("O ficheiro não parece ser um Excel .xlsx válido.");
+  const total = dv.getUint16(eocd + 10, true);
+  let p = dv.getUint32(eocd + 16, true);
+  const entradas = {};
+  const dec = new TextDecoder();
+  for (let k = 0; k < total; k++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) throw new Error("Excel corrompido (zip).");
+    const metodo = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true);
+    const nlen = dv.getUint16(p + 28, true), xlen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true);
+    const off = dv.getUint32(p + 42, true);
+    entradas[dec.decode(new Uint8Array(buf, p + 46, nlen))] = { metodo, csize, off };
+    p += 46 + nlen + xlen + clen;
+  }
+  return {
+    async texto(nome) {
+      const e = entradas[nome];
+      if (!e) return null;
+      const ini = e.off + 30 + dv.getUint16(e.off + 26, true) + dv.getUint16(e.off + 28, true);
+      const dados = new Uint8Array(buf, ini, e.csize);
+      let bytes;
+      if (e.metodo === 0) bytes = dados;
+      else if (e.metodo === 8) {
+        const s = new Blob([dados]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+        bytes = new Uint8Array(await new Response(s).arrayBuffer());
+      } else throw new Error("Compressão do Excel não suportada.");
+      return new TextDecoder("utf-8").decode(bytes);
+    }
+  };
+}
+
+const parseXml = t => new DOMParser().parseFromString(t, "application/xml");
+const filho = (el, nome) => { for (const x of el.children) if (x.localName === nome) return x; return null; };
+
+function textoRico(el) {   // junta os <t> de um <si>/<is>, ignorando a fonética (<rPh>)
+  let s = "";
+  for (const t of el.getElementsByTagNameNS("*", "t")) if (t.parentNode.localName !== "rPh") s += t.textContent;
+  return s;
+}
+
+function indiceColuna(ref) {
+  const m = /^[A-Z]+/.exec(ref);
+  let n = 0;
+  for (const ch of m[0]) n = n * 26 + (ch.charCodeAt(0) - 64);
+  return n - 1;
+}
+
+async function abrirExcel(file) {
+  const zip = await unzip(await file.arrayBuffer());
+  const wbXml = await zip.texto("xl/workbook.xml");
+  if (!wbXml) throw new Error("O ficheiro não parece ser um Excel .xlsx válido.");
+  const rels = {};
+  for (const r of parseXml(await zip.texto("xl/_rels/workbook.xml.rels")).getElementsByTagNameNS("*", "Relationship"))
+    rels[r.getAttribute("Id")] = r.getAttribute("Target");
+  const sheets = {};
+  for (const s of parseXml(wbXml).getElementsByTagNameNS("*", "sheet")) {
+    const rid = s.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "id");
+    const alvo = rels[rid] || "";
+    sheets[s.getAttribute("name")] = alvo.startsWith("/") ? alvo.slice(1) : "xl/" + alvo;
+  }
+
+  let partilhadas = null;
+  async function stringsPartilhadas() {
+    if (partilhadas) return partilhadas;
+    partilhadas = [];
+    const t = await zip.texto("xl/sharedStrings.xml");
+    if (t) for (const si of parseXml(t).getElementsByTagNameNS("*", "si")) partilhadas.push(textoRico(si));
+    return partilhadas;
+  }
+
+  function valor(c, ss) {
+    const tipo = c.getAttribute("t");
+    if (tipo === "inlineStr") { const is = filho(c, "is"); return is ? textoRico(is) : null; }
+    const v = filho(c, "v");
+    if (!v) return null;
+    if (tipo === "s") return ss[+v.textContent] ?? null;
+    return v.textContent;
+  }
+
+  return {
+    nomes: Object.keys(sheets),
+    async linhas(nome) {
+      const t = await zip.texto(sheets[nome]);
+      if (!t) throw new Error("Não consegui ler a sheet " + nome + ".");
+      const ss = await stringsPartilhadas();
+      const out = [];
+      let rn = 0;
+      for (const row of parseXml(t).getElementsByTagNameNS("*", "row")) {
+        rn = row.hasAttribute("r") ? +row.getAttribute("r") : rn + 1;
+        const vals = [];
+        let ci = -1;
+        for (const c of row.children) {
+          if (c.localName !== "c") continue;
+          ci = c.hasAttribute("r") ? indiceColuna(c.getAttribute("r")) : ci + 1;
+          vals[ci] = valor(c, ss);
+        }
+        out.push({ r: rn, vals });
+      }
+      return out;
+    }
+  };
+}
+
+async function lerLojas(wb, sheet) {   // [(job_name, parametros)] a partir da linha 2, sem linhas vazias
+  const lojas = [];
+  for (const { r, vals } of await wb.linhas(sheet)) {
+    if (r < 2) continue;
+    const job = vals[COL_JOB], param = vals[COL_PARAM];
+    if (!job || !param) continue;
+    lojas.push([String(job).trim(), String(param).trim()]);
+  }
+  return lojas;
+}
+
+/* ---------- mesma lógica do adicionar_lojas_xml.py ---------- */
+
+const escXml = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const escHtml = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+function construirJob(template, jobName, parametros) {
+  return template
+    .replace(/(<unix_job name=")[^"]+(")/, (m, a, b) => a + escXml(jobName) + b)
+    .replace(/<args>[\s\S]*?<\/args>/, () => "<args>" + escXml(parametros) + "</args>");
+}
+
+function processar(x, lojas) {
+  const xml = x.texto;
+  const res = { total: lojas.length, novos: [] };
+  const tpl = xml.match(/<unix_job name="[^"]+" qualifier="0001">[\s\S]*?<\/unix_job>/);
+  if (!tpl) return { ...res, erro: "Sem <unix_job> no XML para servir de molde." };
+  const existentes = new Set([...xml.matchAll(/<unix_job name="([^"]+)"/g)].map(m => m[1]));
+  res.existentes = existentes.size;
+
+  const vistos = new Set();
+  for (const [j, p] of lojas) {
+    if (existentes.has(j) || vistos.has(j)) continue;
+    vistos.add(j);
+    res.novos.push([j, p]);
+  }
+  if (!res.novos.length) return res;
+
+  const idx = xml.lastIndexOf("</appl>");
+  if (idx < 0) return { ...res, erro: "Não encontrei </appl> no XML." };
+  let out = xml.slice(0, idx) + res.novos.map(([j, p]) => construirJob(tpl[0], j, p)).join("") + xml.slice(idx);
+
+  const pos = out.indexOf('name="' + x.appl + '@Inicial"');
+  if (pos < 0) return { ...res, erro: "Não encontrei o link " + x.appl + "@Inicial." };
+  const fim = out.indexOf("</relconditionlist>", pos);
+  if (fim < 0) return { ...res, erro: "Não encontrei </relconditionlist> no @Inicial." };
+  out = out.slice(0, fim) + res.novos.map(([j]) =>
+    "<relcondition><successorname>" + escXml(j) + ".0001</successorname><condition>NORMAL</condition></relcondition>"
+  ).join("") + out.slice(fim);
+
+  res.saida = out;
+  res.validacao = validar(out, x.appl);
+  return res;
+}
+
+function validar(xml, appl) {
+  const ok = !parseXml(xml).getElementsByTagName("parsererror").length;
+  const jobs = (xml.match(/<unix_job name="/g) || []).length;
+  let deps = 0;
+  const pos = xml.indexOf('name="' + appl + '@Inicial"');
+  if (pos >= 0) deps = (xml.slice(pos, xml.indexOf("</relconditionlist>", pos)).match(/<relcondition>/g) || []).length;
+  return { ok, jobs, deps };
+}
+
+/* ---------- carregamento de ficheiros ---------- */
+
+function detetarInsignia(nome, texto) {
+  const m = /<appl\b[^>]*\bname="([^"]+)"/.exec(texto);
+  const appl = m ? m[1] : null;
+  const ins = (appl && /_(CNT|CBD|MDL)$/.exec(appl)) || /_(CNT|CBD|MDL)\.xml/i.exec(nome);
+  return ins ? { ins: ins[1].toUpperCase(), appl: appl || nome.replace(/\.xml.*$/i, "") } : null;
+}
+
+async function adicionarFicheiros(lista) {
+  for (const f of lista) {
+    if (/\.xlsx$/i.test(f.name)) { estado.excel = f; continue; }
+    if (/\.xml(\.bak)?$/i.test(f.name)) {
+      const texto = await f.text();
+      const d = detetarInsignia(f.name, texto);
+      if (d) { estado.xml[d.ins] = { nome: f.name, texto, appl: d.appl }; continue; }
+    }
+    estado.ignorados.push(f.name);
+  }
+  await analisar();
+}
+
+/* ---------- análise e apresentação ---------- */
+
+async function analisar() {
+  desenharFicheiros();
+  resultados = [];
+  const box = document.getElementById("resultado");
+  if (!estado.excel || !Object.keys(estado.xml).length) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+
+  let wb;
+  try { wb = await abrirExcel(estado.excel); }
+  catch (e) { resultados = [{ ins: "Excel", erro: e.message }]; desenharResultados(); return; }
+
+  for (const ins of INSIGNIAS) {
+    const x = estado.xml[ins];
+    if (!x) { resultados.push({ ins, aviso: "XML não carregado – ignorado." }); continue; }
+    if (!wb.nomes.includes(ins)) { resultados.push({ ins, x, aviso: "Sheet " + ins + " não existe no Excel – ignorada." }); continue; }
+    try { resultados.push({ ins, x, ...processar(x, await lerLojas(wb, ins)) }); }
+    catch (e) { resultados.push({ ins, x, erro: e.message }); }
+  }
+  desenharResultados();
+}
+
+function desenharFicheiros() {
+  const chips = [];
+  chips.push(estado.excel
+    ? '<span class="chip"><b>Excel</b>' + escHtml(estado.excel.name) + "</span>"
+    : '<span class="chip bad"><b>Excel</b>em falta</span>');
+  for (const ins of INSIGNIAS)
+    if (estado.xml[ins]) chips.push('<span class="chip"><b>' + ins + "</b>" + escHtml(estado.xml[ins].nome) + "</span>");
+  for (const n of estado.ignorados) chips.push('<span class="chip bad"><b>Ignorado</b>' + escHtml(n) + "</span>");
+  document.getElementById("files").innerHTML = chips.join("");
+  document.getElementById("limpar").classList.toggle("hidden", !estado.excel && !Object.keys(estado.xml).length && !estado.ignorados.length);
+}
+
+function desenharResultados() {
+  const html = resultados.map((r, i) => {
+    let badge, corpo = "";
+    if (r.erro) { badge = '<span class="badge b-err">Erro</span>'; corpo = '<p class="msg err">' + escHtml(r.erro) + "</p>"; }
+    else if (r.aviso) { badge = '<span class="badge b-warn">Ignorado</span>'; corpo = '<p class="msg warn">' + escHtml(r.aviso) + "</p>"; }
+    else if (!r.novos.length) {
+      badge = '<span class="badge b-ok">Atualizado</span>';
+      corpo = '<p class="stats">Todas as <b>' + r.total + "</b> lojas da sheet já existem no XML. Nada a acrescentar.</p>";
+    } else {
+      const v = r.validacao;
+      badge = '<span class="badge b-new">+' + r.novos.length + " loja" + (r.novos.length > 1 ? "s" : "") + "</span>";
+      corpo = '<p class="stats"><b>' + r.total + "</b> lojas na sheet · <b>" + r.existentes + "</b> jobs já no XML · <b>" +
+        r.novos.length + "</b> a acrescentar</p>" +
+        (v.ok
+          ? '<p class="msg ' + (v.jobs === v.deps ? "ok" : "warn") + '">XML resultante bem formado · ' + v.jobs + " jobs · " + v.deps +
+            " dependências no @Inicial" + (v.jobs === v.deps ? "" : " (contagens diferentes – verifique)") + "</p>"
+          : '<p class="msg err">O XML resultante não é válido – não descarregue.</p>') +
+        "<details><summary>Ver lojas a acrescentar</summary><div class=\"list\">" +
+        r.novos.map(([j, p]) => "<div>+ " + escHtml(j) + "<span>" + escHtml(p) + "</span></div>").join("") +
+        "</div></details>" +
+        '<div class="row" style="margin-top:10px"><button data-i="' + i + '"' + (v.ok ? "" : " disabled") + ">Descarregar " +
+        escHtml(r.x.appl) + ".xml</button></div>";
+    }
+    const nome = r.x ? "<small>" + escHtml(r.x.nome) + "</small>" : "";
+    return '<div class="ins"><div class="row"><h3>' + escHtml(r.ins) + nome + "</h3>" + badge + "</div>" + corpo + "</div>";
+  }).join("");
+  document.getElementById("insignias").innerHTML = html;
+
+  const prontos = alterados();
+  const n = prontos.reduce((s, r) => s + r.novos.length, 0);
+  document.getElementById("resumo").textContent = prontos.length
+    ? n + " loja(s) a acrescentar em " + prontos.length + " XML."
+    : "Nenhum XML precisa de alterações.";
+  document.getElementById("todos").disabled = !prontos.length;
+}
+
+const alterados = () => resultados.filter(r => r.saida && r.validacao.ok);
+
+function descarregar(r) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([r.saida], { type: "application/xml" }));
+  a.download = r.x.appl + ".xml";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+}
+
+/* ---------- eventos ---------- */
+
+const drop = document.getElementById("drop"), input = document.getElementById("input");
+input.addEventListener("change", () => { adicionarFicheiros([...input.files]); input.value = ""; });
+["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => adicionarFicheiros([...e.dataTransfer.files]));
+
+document.getElementById("limpar").addEventListener("click", () => {
+  estado.excel = null; estado.xml = {}; estado.ignorados = [];
+  analisar();
+});
+document.getElementById("insignias").addEventListener("click", e => {
+  const b = e.target.closest("button[data-i]");
+  if (b) descarregar(resultados[+b.dataset.i]);
+});
+document.getElementById("todos").addEventListener("click", async () => {
+  for (const r of alterados()) { descarregar(r); await new Promise(ok => setTimeout(ok, 400)); }
+});
+</script>
+</body>
+</html>
